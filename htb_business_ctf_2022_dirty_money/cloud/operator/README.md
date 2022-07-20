@@ -282,7 +282,8 @@ alias k='/home/kali/Downloads/htbctfbiz/operator/kubectl --token=$TOKEN --server
 
 ```
 
-Checking privileges
+Checking privileges, it should be noted you need to specify the namespace to see the permisisons under the `awx` namespace.
+Without specifying the namespace.
 ```
  k auth can-i --list                                                                                                                         
 Resources                                       Non-Resource URLs                     Resource Names   Verbs
@@ -307,6 +308,79 @@ selfsubjectrulesreviews.authorization.k8s.io    []                              
                                                 [/version]                            []               [get]
                                                 [/version]                            []               [get]
 
+```
+
+Checking under the `awx` namespace.
+```
+k auth can-i --list -n awx
+Resources                                          Non-Resource URLs                     Resource Names   Verbs                                   
+*.awx.ansible.com                                  []                                    []               [*]                                   
+awxbackups.awx.ansible.com                         []                                    []               [*]                                     
+awxrestores.awx.ansible.com                        []                                    []               [*]                                   
+pods/attach                                        []                                    []               [create get]                            
+pods/exec                                          []                                    []               [create get]                          
+pods/log                                           []                                    []               [create get]                            
+events                                             []                                    []               [create patch get list delete update watch]                                                                                                                                               
+tokenreviews.authentication.k8s.io                 []                                    []               [create]                                
+selfsubjectaccessreviews.authorization.k8s.io      []                                    []               [create]                              
+selfsubjectrulesreviews.authorization.k8s.io       []                                    []               [create]                                
+subjectaccessreviews.authorization.k8s.io          []                                    []               [create]                              
+servicemonitors.monitoring.coreos.com              []                                    []               [get create]                            
+endpoints                                          []                                    []               [get list create delete patch update watch]                                                                                                                                               
+persistentvolumeclaims                             []                                    []               [get list create delete patch update watch]                                                                                                                                               
+pods                                               []                                    []               [get list create delete patch update watch]                                                                                                                                               
+rolebindings                                       []                                    []               [get list create delete patch update watch]                                                                                                                                               
+roles                                              []                                    []               [get list create delete patch update watch]                                                                                                                                               
+secrets                                            []                                    []               [get list create delete patch update watch]                                                                                                                                               
+serviceaccounts                                    []                                    []               [get list create delete patch update watch]                                                                                                                                               
+services/finalizers                                []                                    []               [get list create delete patch update watch]                                                                                                                                               
+services                                           []                                    []               [get list create delete patch update watch]                                                                                                                                               
+daemonsets.apps                                    []                                    []               [get list create delete patch update watch]                                                                                                                                               
+deployments.apps                                   []                                    []               [get list create delete patch update watch]                                                                                                                                               
+ingresses.apps                                     []                                    []               [get list create delete patch update watch]                                                                                                                                               
+replicasets.apps                                   []                                    []               [get list create delete patch update watch]                                                                                                                                               
+statefulsets.apps                                  []                                    []               [get list create delete patch update watch]                                                                                                                                               
+daemonsets.networking.k8s.io                       []                                    []               [get list create delete patch update watch]                                                                                                                                               
+deployments.networking.k8s.io                      []                                    []               [get list create delete patch update watch]                                                                                                                                               
+ingresses.networking.k8s.io                        []                                    []               [get list create delete patch update watch]                                                                                                                                               
+replicasets.networking.k8s.io                      []                                    []               [get list create delete patch update watch]                                                                                                                                               
+statefulsets.networking.k8s.io                     []                                    []               [get list create delete patch update watch]                                                                                                                                               
+configmaps.rbac.authorization.k8s.io               []                                    []               [get list create delete patch update watch]                                                                                                                                               
+endpoints.rbac.authorization.k8s.io                []                                    []               [get list create delete patch update watch]                                                                                                                                               
+events.rbac.authorization.k8s.io                   []                                    []               [get list create delete patch update watch]                                                                                                                                               
+persistentvolumeclaims.rbac.authorization.k8s.io   []                                    []               [get list create delete patch update watch]                                                                                                                                               
+pods.rbac.authorization.k8s.io                     []                                    []               [get list create delete patch update watch]                                                                                                                                               
+rolebindings.rbac.authorization.k8s.io             []                                    []               [get list create delete patch update watch]                                                                                                                                               
+roles.rbac.authorization.k8s.io                    []                                    []               [get list create delete patch update watch]                                                                                                                                               
+secrets.rbac.authorization.k8s.io                  []                                    []               [get list create delete patch update watch]                                                                                                                                               
+serviceaccounts.rbac.authorization.k8s.io          []                                    []               [get list create delete patch update watch]                                                                                                                                               
+services.rbac.authorization.k8s.io/finalizers      []                                    []               [get list create delete patch update watch]                                                                                                                                               
+services.rbac.authorization.k8s.io                 []                                    []               [get list create delete patch update watch]                                                                                                                                               
+routes.route.openshift.io/custom-host              []                                    []               [get list create delete patch update watch]                                                                                                                                               
+routes.route.openshift.io                          []                                    []               [get list create delete patch update watch]                                                                                                                                               
+configmaps                                         []                                    []               [get list watch create update patch delete]                                                                                                                                               
+leases.coordination.k8s.io                         []                                    []               [get list watch create update patch delete]                                                                                                                                               
+                                                   [/.well-known/openid-configuration]   []               [get]                                 
+                                                   [/api/*]                              []               [get]                                 
+                                                   [/api]                                []               [get]                                 
+                                                   [/apis/*]                             []               [get]
+                                                   [/apis]                               []               [get]                                 
+                                                   [/healthz]                            []               [get]                                 
+                                                   [/healthz]                            []               [get]                                 
+                                                   [/livez]                              []               [get]                                 
+                                                   [/livez]                              []               [get]                                 
+                                                   [/openapi/*]                          []               [get]                                 
+                                                   [/openapi]                            []               [get]                                 
+                                                   [/openid/v1/jwks]                     []               [get]                                   
+                                                   [/readyz]                             []               [get]                                   
+                                                   [/readyz]                             []               [get]                                   
+                                                   [/version/]                           []               [get]                                   
+                                                   [/version/]                           []               [get]                                   
+                                                   [/version]                            []               [get]                                   
+                                                   [/version]                            []               [get]                                   
+deployments.apps/scale                             []                                    []               [patch]                                 
+statefulsets.apps/scale                            []                                    []               [patch]                                 
+deployments.apps/finalizers                        []                                    [awx-operator]   [update]    
 ```
 
 Since we have permission to create pods, let try to create a privileged one that does everything wrong like mount the host system.
